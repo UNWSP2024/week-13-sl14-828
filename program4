@@ -1,0 +1,130 @@
+#program 4
+import sqlite3
+
+# Menu constants
+MIN_CHOICE = 1
+MAX_CHOICE = 5
+CREATE = 1
+READ = 2
+UPDATE = 3
+DELETE = 4
+EXIT = 5
+
+def main():
+    choice = 0
+    while choice != EXIT:
+        display_menu()
+        choice = get_menu_choice()
+
+        if choice == CREATE:
+            create()
+        elif choice == READ:
+            read()
+        elif choice == UPDATE:
+            update()
+        elif choice == DELETE:
+            delete()
+
+# The display_menu function displays the main menu.
+def display_menu():
+    print('\n----- Phonebook Menu -----')
+    print('1. Create a new entry')
+    print('2. Read an entry')
+    print('3. Update an entry')
+    print('4. Delete an entry')
+    print('5. Exit the program')
+
+# The get_menu_choice function gets the user's menu choice.
+def get_menu_choice():
+    choice = int(input('Enter your choice: '))
+    # Validate the input.
+    while choice < MIN_CHOICE or choice > MAX_CHOICE:
+        print(f'Valid choices are {MIN_CHOICE} through {MAX_CHOICE}. Please rerun and try again.')
+        choice = int(input('Enter your choice: '))
+    return choice
+
+# The create function creates a new entry.
+def create():
+    print('Create New Entry')
+    username = input('User\'s Name: ')
+    phone_number = input('Phone Number: ')
+    phoneid = int(input('Enter PhoneID: '))
+    insert_row(phoneid, username, phone_number)
+
+# The read function reads an existing entry.
+def read():
+    name = input('Enter a full name to search for: ')
+    num_found = display_item(name)
+    print(f'{num_found} row(s) found.')
+
+# The update function updates an existing entry.
+def update():
+    read()
+    # Get the ID of the selected entry.
+    selected_id = int(input('Select an Entry ID: '))
+    # Get new values for username and phone number.
+    username = input('Enter the new name: ')
+    phone_number = input('Enter the new phone number: ')
+    num_updated = update_row(selected_id, username, phone_number)
+    print(f'{num_updated} row(s) updated.')
+
+# The delete function deletes an entry.
+def delete():
+    read()
+    answer = input('Are you sure you want to delete this entry? (y/n): ')
+    if answer.lower() == 'y':
+        selected_id = int(input('Enter the Entry ID to confirm: '))
+        num_deleted = delete_row(selected_id)
+        print(f'{num_deleted} row(s) deleted.')
+
+# The insert_row function inserts a row into the PhoneN table.
+def insert_row(phoneid, username, phone_number):
+    conn = None
+    try:
+        conn = sqlite3.connect('phonebook.db')
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO PhoneN (PhoneID, Username, Phone_number)
+                       VALUES (?, ?, ?)''', (phoneid, username, phone_number))
+        conn.commit()
+    except sqlite3.Error as err:
+        print('Database Error:', err)
+    finally:
+        if conn:
+            conn.close()
+
+# The display_item function displays all items with a matching username.
+def display_item(username):
+    results = []
+    conn = sqlite3.connect('phonebook.db')
+    cur = conn.cursor()
+    cur.execute('''SELECT * FROM PhoneN WHERE Username = ?''', (username,))
+    results = cur.fetchall()
+    for row in results:
+        print(f'PhoneID: {row[0]:<3} Name: {row[1]:<15} Phone Number: {row[2]:<10}')
+    conn.close()
+    return len(results)
+
+# The update_row function updates an existing row with a new username and phone number.
+def update_row(phoneid, username, phone_number):
+    conn = sqlite3.connect('phonebook.db')
+    cur = conn.cursor()
+    cur.execute('''UPDATE PhoneN SET Username = ?, Phone_number = ? WHERE PhoneID = ?''',
+                (username, phone_number, phoneid))
+    conn.commit()
+    num_updated = cur.rowcount
+    conn.close()
+    return num_updated
+
+# The delete_row function deletes an existing row.
+def delete_row(phoneid):
+    conn = sqlite3.connect('phonebook.db')
+    cur = conn.cursor()
+    cur.execute('''DELETE FROM PhoneN WHERE PhoneID = ?''', (phoneid,))
+    conn.commit()
+    num_deleted = cur.rowcount
+    conn.close()
+    return num_deleted
+
+# Execute the main function.
+if __name__ == '__main__':
+    main()
