@@ -1,0 +1,172 @@
+#Program 2
+import sqlite3
+import tkinter as tk
+from tkinter import ttk
+
+# Constants for menu choices
+MIN_CHOICE = 1
+MAX_CHOICE = 8
+ASCENDING = 1
+DESCENDING = 2
+NAME = 3
+TOTAL = 4
+AVERAGE = 5
+HIGHEST = 6
+LOWEST = 7
+EXIT = 8
+
+def main():
+    # Connect to the database and prepare the table
+    conn = sqlite3.connect('cities.db')
+    cur = conn.cursor()
+    add_cities_table(cur)
+    add_cities(cur)
+    conn.commit()
+
+    # Show the tkinter window
+    citywindow(cur)
+
+    # Close the database connection
+    conn.close()
+
+# The add_cities_table function creates the Cities table in the database
+def add_cities_table(cur):
+    cur.execute('DROP TABLE IF EXISTS Cities')
+    cur.execute('''CREATE TABLE Cities (
+                    CityID INTEGER PRIMARY KEY NOT NULL,
+                    CityName TEXT,
+                    Population REAL)''')
+
+# The add_cities function adds 20 rows to the Cities table
+def add_cities(cur):
+    cities_pop = [
+        (1, 'Tokyo', 38001000),
+        (2, 'Delhi', 25703168),
+        (3, 'Shanghai', 23740778),
+        (4, 'Sao Paulo', 21066245),
+        (5, 'Mumbai', 21042538),
+        (6, 'Mexico City', 20998543),
+        (7, 'Beijing', 20383994),
+        (8, 'Osaka', 20237645),
+        (9, 'Cairo', 18771769),
+        (10, 'New York', 18593220),
+        (11, 'Dhaka', 17598228),
+        (12, 'Karachi', 16617644),
+        (13, 'Buenos Aires', 15180176),
+        (14, 'Kolkata', 14864919),
+        (15, 'Istanbul', 14163989),
+        (16, 'Chongqing', 13331579),
+        (17, 'Lagos', 13122829),
+        (18, 'Manila', 12946263),
+        (19, 'Rio de Janeiro', 12902306),
+        (20, 'Guangzhou', 12458130)
+    ]
+
+    for row in cities_pop:
+        cur.execute('''INSERT INTO Cities (CityID, CityName, Population)
+                       VALUES (?, ?, ?)''', (row[0], row[1], row[2]))
+
+# Function to display cities in a tkinter window using Treeview
+def citywindow(cur):
+    main = tk.Tk()
+    main.title("Cities Database Viewer")
+
+    # Create Treeview widget
+    view = ttk.Treeview(main, columns=("Digit", "City", "Population"), show="headings")
+    view.heading("City", text="City")
+    view.heading("Population", text="Population")
+    view.heading("Digit", text="Digit")
+
+    # Define column widths
+    view.column("Population", width=200)
+    view.column("Digit", width=75)
+    view.column("City", width=100)
+
+    # Fetch and display data from the database
+    cur.execute('SELECT * FROM Cities')
+    rows = cur.fetchall()
+    for row in rows:
+        view.insert("", tk.END, values=(row[0], row[1], f"{row[2]:,.0f}"))
+
+    view.pack(fill=tk.BOTH)
+
+    # Menu for user choices
+    menu = tk.Menu(main)
+    main.config(menu=menu)
+
+    operations_menu = tk.Menu(menu, tearoff=0)
+    menu.add_cascade(label="Operations", menu=operations_menu)
+
+    # Add operations to the menu
+    operations_menu.add_command(label="Ascending Order", command=lambda: display_sorted_cities(cur, "ASC"))
+    operations_menu.add_command(label="Descending Order", command=lambda: display_sorted_cities(cur, "DESC"))
+    operations_menu.add_command(label="Sort by Name", command=lambda: display_sorted_cities(cur, "NAME"))
+    operations_menu.add_command(label="Total Population", command=lambda: display_total_population(cur))
+    operations_menu.add_command(label="Average Population", command=lambda: display_average_population(cur))
+    operations_menu.add_command(label="Highest Population", command=lambda: display_highest_population(cur))
+    operations_menu.add_command(label="Lowest Population", command=lambda: display_lowest_population(cur))
+    operations_menu.add_command(label="Exit", command=main.quit)
+
+    main.mainloop()
+
+# Function to display cities sorted by population or name
+def display_sorted_cities(cur, order_by):
+    if order_by == "ASC":
+        query = "SELECT CityName, Population FROM Cities ORDER BY Population ASC"
+    elif order_by == "DESC":
+        query = "SELECT CityName, Population FROM Cities ORDER BY Population DESC"
+    elif order_by == "NAME":
+        query = "SELECT CityName, Population FROM Cities ORDER BY CityName"
+    
+    results = fetch_data(cur, query)
+    display_results(results)
+
+# Fetch data from the database based on the query
+def fetch_data(cur, query):
+    cur.execute(query)
+    return cur.fetchall()
+
+# Display the query results
+def display_results(results):
+    result_window = tk.Toplevel()
+    result_window.title("Query Results")
+    text_area = tk.Text(result_window)
+    text_area.pack(fill=tk.BOTH, expand=True)
+
+    for row in results:
+        text_area.insert(tk.END, f"{row[0]}: {row[1]:,.0f}\n")
+
+# Function to display the total population of all cities
+def display_total_population(cur):
+    query = "SELECT SUM(Population) FROM Cities"
+    result = fetch_data(cur, query)
+    display_single_result(result[0][0], "Total Population")
+
+# Function to display the average population of all cities
+def display_average_population(cur):
+    query = "SELECT AVG(Population) FROM Cities"
+    result = fetch_data(cur, query)
+    display_single_result(result[0][0], "Average Population")
+
+# Function to display the city with the highest population
+def display_highest_population(cur):
+    query = "SELECT CityName, Population FROM Cities ORDER BY Population DESC LIMIT 1"
+    result = fetch_data(cur, query)
+    display_single_result(f"{result[0][0]}: {result[0][1]:,.0f}", "Highest Population")
+
+# Function to display the city with the lowest population
+def display_lowest_population(cur):
+    query = "SELECT CityName, Population FROM Cities ORDER BY Population ASC LIMIT 1"
+    result = fetch_data(cur, query)
+    display_single_result(f"{result[0][0]}: {result[0][1]:,.0f}", "Lowest Population")
+
+# Function to display a single result (total, average, highest, lowest)
+def display_single_result(result, label):
+    result_window = tk.Toplevel()
+    result_window.title(f"{label} Result")
+    label_widget = tk.Label(result_window, text=f"{label}: {result}")
+    label_widget.pack(pady=20)
+
+# Execute the main function when the script runs
+if __name__ == '__main__':
+    main()
